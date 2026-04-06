@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, Leaf } from "lucide-react";
+import { Menu, X } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import ecoLogo from "@/assets/eco-logo.png";
 
 const navLinks = [
@@ -14,6 +15,13 @@ const navLinks = [
 const Navbar = () => {
   const [open, setOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-card/80 backdrop-blur-lg border-b border-border">
@@ -42,8 +50,14 @@ const Navbar = () => {
         </div>
 
         <div className="hidden md:flex items-center gap-3">
-          <Button variant="ghost" size="sm">Log in</Button>
-          <Button variant="hero" size="sm">Sign up</Button>
+          {user ? (
+            <Button variant="ghost" size="sm" onClick={handleSignOut}>Log out</Button>
+          ) : (
+            <>
+              <Link to="/auth"><Button variant="ghost" size="sm">Log in</Button></Link>
+              <Link to="/auth"><Button variant="hero" size="sm">Sign up</Button></Link>
+            </>
+          )}
         </div>
 
         <button
@@ -67,8 +81,14 @@ const Navbar = () => {
             </Link>
           ))}
           <div className="flex gap-2 mt-3">
-            <Button variant="ghost" size="sm" className="flex-1">Log in</Button>
-            <Button variant="hero" size="sm" className="flex-1">Sign up</Button>
+            {user ? (
+              <Button variant="ghost" size="sm" className="flex-1" onClick={handleSignOut}>Log out</Button>
+            ) : (
+              <>
+                <Link to="/auth" className="flex-1"><Button variant="ghost" size="sm" className="w-full">Log in</Button></Link>
+                <Link to="/auth" className="flex-1"><Button variant="hero" size="sm" className="w-full">Sign up</Button></Link>
+              </>
+            )}
           </div>
         </div>
       )}

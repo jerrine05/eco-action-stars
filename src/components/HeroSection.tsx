@@ -1,8 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Leaf, TreePine, Recycle } from "lucide-react";
+import { Link } from "react-router-dom";
 import heroImage from "@/assets/hero-nature.jpg";
 
 const HeroSection = () => {
+  const scrollToHowItWorks = () => {
+    document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" });
+  };
+
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden">
       <div className="absolute inset-0">
@@ -35,19 +40,21 @@ const HeroSection = () => {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 animate-fade-in" style={{ animationDelay: "0.3s" }}>
-            <Button variant="hero" size="lg" className="text-base">
-              Start Earning <ArrowRight size={18} />
-            </Button>
-            <Button variant="hero-outline" size="lg" className="text-base text-primary-foreground border-primary-foreground/40 hover:bg-primary-foreground/10">
+            <Link to="/upload">
+              <Button variant="hero" size="lg" className="text-base">
+                Start Earning <ArrowRight size={18} />
+              </Button>
+            </Link>
+            <Button variant="hero-outline" size="lg" className="text-base text-primary-foreground border-primary-foreground/40 hover:bg-primary-foreground/10" onClick={scrollToHowItWorks}>
               How It Works
             </Button>
           </div>
 
           <div className="flex items-center gap-8 mt-12 animate-fade-in" style={{ animationDelay: "0.4s" }}>
             {[
-              { icon: TreePine, label: "12K+ Trees Planted" },
-              { icon: Recycle, label: "50K+ Actions Verified" },
-              { icon: Leaf, label: "₹2M+ Rewards Given" },
+              { icon: TreePine, label: "Plant Trees & Earn" },
+              { icon: Recycle, label: "AI-Verified Actions" },
+              { icon: Leaf, label: "Real Rewards" },
             ].map(({ icon: Icon, label }) => (
               <div key={label} className="flex items-center gap-2 text-primary-foreground/70">
                 <Icon size={18} className="text-eco-sun" />
