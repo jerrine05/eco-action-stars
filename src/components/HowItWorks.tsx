@@ -1,4 +1,6 @@
 import { Camera, ShieldCheck, Trophy, Banknote } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 const steps = [
   {
@@ -29,7 +31,7 @@ const steps = [
 
 const HowItWorks = () => {
   return (
-    <section className="py-24 bg-muted/50">
+    <section id="how-it-works" className="py-24 bg-muted/50">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
@@ -57,6 +59,14 @@ const HowItWorks = () => {
               <p className="text-sm text-muted-foreground">{step.description}</p>
             </div>
           ))}
+        </div>
+
+        <div className="text-center mt-12">
+          <Link to="/upload">
+            <Button variant="hero" size="lg">
+              Get Started Now
+            </Button>
+          </Link>
         </div>
       </div>
     </section>

@@ -1,10 +1,14 @@
 import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Camera, Upload as UploadIcon, X, CheckCircle, Image, Video } from "lucide-react";
+import { Camera, Upload as UploadIcon, X, CheckCircle, AlertCircle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 const activityTypes = [
   { id: "trash", label: "Trash Cleanup", points: 10 },
@@ -23,31 +27,98 @@ const UploadPage = () => {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [submitted, setSubmitted] = useState(false);
+  const [aiResult, setAiResult] = useState<{ feedback: string; recommended_status: string; confidence: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 50 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Max file size is 50MB", variant: "destructive" });
+      return;
+    }
     setSelectedFile(file);
     setPreview(URL.createObjectURL(file));
   };
 
-  const handleSubmit = () => {
-    if (!selectedFile || !activity) return;
+  const handleSubmit = async () => {
+    if (!selectedFile || !activity || !user) return;
     setUploading(true);
-    let p = 0;
-    const interval = setInterval(() => {
-      p += Math.random() * 20;
-      if (p >= 100) {
-        p = 100;
-        clearInterval(interval);
-        setTimeout(() => {
-          setUploading(false);
-          setSubmitted(true);
-        }, 500);
+    setProgress(10);
+
+    try {
+      // Upload file to storage
+      const fileExt = selectedFile.name.split(".").pop();
+      const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+      
+      setProgress(20);
+      const { error: uploadError } = await supabase.storage
+        .from("submissions")
+        .upload(filePath, selectedFile);
+
+      if (uploadError) throw uploadError;
+
+      setProgress(50);
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("submissions")
+        .getPublicUrl(filePath);
+
+      // AI verification
+      setProgress(60);
+      const activityInfo = activityTypes.find(a => a.id === activity);
+      
+      let verificationResult = { is_valid: true, confidence: 0.7, feedback: "Verification pending", recommended_status: "pending" as string };
+      
+      try {
+        const { data: aiData, error: aiError } = await supabase.functions.invoke("verify-submission", {
+          body: { imageUrl: publicUrl, activityType: activityInfo?.label || activity },
+        });
+        if (!aiError && aiData && !aiData.error) {
+          verificationResult = aiData;
+        }
+      } catch {
+        console.log("AI verification unavailable, submitting as pending");
       }
-      setProgress(p);
-    }, 300);
+
+      setProgress(80);
+
+      const points = verificationResult.recommended_status === "verified" ? (activityInfo?.points || 10) : 0;
+
+      // Insert submission
+      const { error: insertError } = await supabase.from("submissions").insert({
+        user_id: user.id,
+        activity_type: activity,
+        description: description || null,
+        file_url: publicUrl,
+        file_type: selectedFile.type.startsWith("video") ? "video" : "image",
+        points,
+        status: verificationResult.recommended_status,
+        ai_confidence: verificationResult.confidence,
+        ai_feedback: verificationResult.feedback,
+      });
+
+      if (insertError) throw insertError;
+
+      // Update profile points if verified
+      if (verificationResult.recommended_status === "verified") {
+        const { data: profile } = await supabase.from("profiles").select("total_points").eq("user_id", user.id).single();
+        if (profile) {
+          await supabase.from("profiles").update({ total_points: profile.total_points + points }).eq("user_id", user.id);
+        }
+      }
+
+      setProgress(100);
+      setAiResult({ feedback: verificationResult.feedback, recommended_status: verificationResult.recommended_status, confidence: verificationResult.confidence });
+      setSubmitted(true);
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message || "Something went wrong", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
   };
 
   const reset = () => {
@@ -57,20 +128,32 @@ const UploadPage = () => {
     setDescription("");
     setProgress(0);
     setSubmitted(false);
+    setAiResult(null);
   };
 
   if (submitted) {
+    const isVerified = aiResult?.recommended_status === "verified";
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
         <main className="container mx-auto px-4 pt-24 pb-16 flex items-center justify-center min-h-[80vh]">
           <Card className="p-10 text-center max-w-md shadow-eco-elevated animate-scale-in">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <CheckCircle size={32} className="text-primary" />
+            <div className={`w-16 h-16 rounded-full ${isVerified ? "bg-primary/10" : "bg-secondary/10"} flex items-center justify-center mx-auto mb-4`}>
+              {isVerified ? <CheckCircle size={32} className="text-primary" /> : <AlertCircle size={32} className="text-secondary" />}
             </div>
-            <h2 className="text-2xl font-bold text-foreground mb-2">Submission Received!</h2>
-            <p className="text-muted-foreground mb-6">Your eco-action is being verified by our AI. Points will be awarded once approved.</p>
-            <Button variant="hero" onClick={reset}>Submit Another</Button>
+            <h2 className="text-2xl font-bold text-foreground mb-2">
+              {isVerified ? "Verified! ✅" : "Submission Received"}
+            </h2>
+            <p className="text-muted-foreground mb-2">{aiResult?.feedback}</p>
+            {aiResult && (
+              <p className="text-xs text-muted-foreground mb-6">
+                AI Confidence: {Math.round((aiResult.confidence || 0) * 100)}% · Status: {aiResult.recommended_status}
+              </p>
+            )}
+            <div className="flex gap-3">
+              <Button variant="hero" onClick={reset} className="flex-1">Submit Another</Button>
+              <Button variant="hero-outline" onClick={() => navigate("/dashboard")} className="flex-1">Dashboard</Button>
+            </div>
           </Card>
         </main>
         <Footer />
@@ -147,7 +230,9 @@ const UploadPage = () => {
         {uploading && (
           <div className="mb-6">
             <div className="flex justify-between text-sm mb-1">
-              <span className="text-muted-foreground">Uploading...</span>
+              <span className="text-muted-foreground">
+                {progress < 50 ? "Uploading..." : progress < 80 ? "AI Verifying..." : "Saving..."}
+              </span>
               <span className="text-primary font-medium">{Math.round(progress)}%</span>
             </div>
             <Progress value={progress} className="h-2" />
