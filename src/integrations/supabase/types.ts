@@ -14,7 +14,84 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string
+          id: string
+          streak_days: number
+          total_points: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string
+          id?: string
+          streak_days?: number
+          total_points?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string
+          id?: string
+          streak_days?: number
+          total_points?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      submissions: {
+        Row: {
+          activity_type: string
+          ai_confidence: number | null
+          ai_feedback: string | null
+          created_at: string
+          description: string | null
+          file_type: string
+          file_url: string
+          id: string
+          points: number
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_type: string
+          ai_confidence?: number | null
+          ai_feedback?: string | null
+          created_at?: string
+          description?: string | null
+          file_type?: string
+          file_url: string
+          id?: string
+          points?: number
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_type?: string
+          ai_confidence?: number | null
+          ai_feedback?: string | null
+          created_at?: string
+          description?: string | null
+          file_type?: string
+          file_url?: string
+          id?: string
+          points?: number
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
