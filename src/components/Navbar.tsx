@@ -10,6 +10,7 @@ const navLinks = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/upload", label: "Upload" },
   { to: "/leaderboard", label: "Leaderboard" },
+  { to: "/redeem", label: "Redeem" },
 ];
 
 const Navbar = () => {

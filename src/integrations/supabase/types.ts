@@ -47,6 +47,45 @@ export type Database = {
         }
         Relationships: []
       }
+      redemptions: {
+        Row: {
+          admin_notes: string | null
+          amount_inr: number
+          created_at: string
+          id: string
+          payment_details: string
+          payment_method: string
+          points_used: number
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          amount_inr: number
+          created_at?: string
+          id?: string
+          payment_details: string
+          payment_method: string
+          points_used: number
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          amount_inr?: number
+          created_at?: string
+          id?: string
+          payment_details?: string
+          payment_method?: string
+          points_used?: number
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       submissions: {
         Row: {
           activity_type: string
@@ -97,7 +136,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      redeem_points: {
+        Args: {
+          _payment_details: string
+          _payment_method: string
+          _points: number
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
