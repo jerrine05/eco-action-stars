@@ -54,6 +54,8 @@ const Leaderboard = () => {
 
   const topThree = leaderboard?.slice(0, 3) || [];
   const rest = leaderboard?.slice(3) || [];
+  // Reorder podium as [2nd, 1st, 3rd] only when present
+  const podiumOrder = [topThree[1], topThree[0], topThree[2]].filter(Boolean);
 
   return (
     <div className="min-h-screen bg-background">
