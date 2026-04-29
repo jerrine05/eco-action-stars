@@ -197,7 +197,7 @@ const Redeem = () => {
                 />
               </div>
 
-              <Button type="submit" disabled={!canRedeem || redeemMutation.isPending} className="w-full" variant="eco">
+              <Button type="submit" disabled={!canRedeem || redeemMutation.isPending} className="w-full" variant="hero">
                 {redeemMutation.isPending ? "Submitting..." : `Redeem ${pointsToRedeem.toLocaleString()} pts → ₹${inrAmount.toLocaleString()}`}
               </Button>
               <p className="text-xs text-muted-foreground text-center">
