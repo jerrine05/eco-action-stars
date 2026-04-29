@@ -81,7 +81,7 @@ Examine the attached image carefully. FIRST determine if it is an original photo
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-pro",
         messages: [
           { role: "system", content: systemPrompt },
           {
