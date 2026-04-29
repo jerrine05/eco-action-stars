@@ -70,10 +70,10 @@ const Leaderboard = () => {
           <div className="text-center text-muted-foreground py-12">Loading leaderboard...</div>
         ) : leaderboard && leaderboard.length > 0 ? (
           <>
-            {topThree.length >= 3 && (
-              <div className="grid grid-cols-3 gap-4 mb-10">
-                {[topThree[1], topThree[0], topThree[2]].map((user, i) => {
-                  const isFirst = i === 1;
+            {podiumOrder.length > 0 && (
+              <div className={`grid gap-4 mb-10 ${podiumOrder.length === 1 ? "grid-cols-1 max-w-xs mx-auto" : podiumOrder.length === 2 ? "grid-cols-2 max-w-md mx-auto" : "grid-cols-3"}`}>
+                {podiumOrder.map((user, i) => {
+                  const isFirst = user.rank === 1;
                   return (
                     <Card
                       key={user.rank}
