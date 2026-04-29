@@ -13,19 +13,55 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const prompt = `You are an AI verification system for an environmental action platform called EcoReward.
+    if (!imageUrl || !activityType) {
+      return new Response(JSON.stringify({ error: "imageUrl and activityType are required" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-Analyze the following image URL and determine if it shows a legitimate "${activityType}" environmental activity.
+    // Fetch the image and convert to base64 data URL so the model can actually SEE it
+    let imageDataUrl = imageUrl;
+    try {
+      const imgResp = await fetch(imageUrl);
+      if (!imgResp.ok) throw new Error(`Failed to fetch image: ${imgResp.status}`);
+      const contentType = imgResp.headers.get("content-type") || "image/jpeg";
+      // Skip videos — model only supports images
+      if (contentType.startsWith("video")) {
+        return new Response(JSON.stringify({
+          is_valid: false,
+          confidence: 0,
+          feedback: "Video submissions require manual review.",
+          recommended_status: "pending",
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const buf = new Uint8Array(await imgResp.arrayBuffer());
+      let binary = "";
+      for (let i = 0; i < buf.length; i++) binary += String.fromCharCode(buf[i]);
+      const base64 = btoa(binary);
+      imageDataUrl = `data:${contentType};base64,${base64}`;
+    } catch (e) {
+      console.error("Image fetch failed:", e);
+      return new Response(JSON.stringify({
+        is_valid: false,
+        confidence: 0,
+        feedback: "Could not load the uploaded image for verification.",
+        recommended_status: "pending",
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
-Image URL: ${imageUrl}
+    const systemPrompt = `You are a strict image verification system for an environmental rewards platform.
+You ONLY approve submissions when the image clearly and unambiguously shows the claimed environmental activity being performed in the real world.
 
-Evaluate:
-1. Does the image show a real environmental activity related to "${activityType}"?
-2. Does the image appear to be a real photograph (not AI-generated, not a screenshot, not a stock photo)?
-3. Is the image clear enough to verify the activity?
-4. Does the content match the claimed activity type?
+Rules:
+- If the image does NOT clearly show the claimed activity, mark it as "rejected" with low confidence.
+- If the image is unrelated, generic, a stock photo, a screenshot, AI-generated, a meme, an indoor selfie, a random object, or you cannot tell what is happening — REJECT it.
+- Only mark "verified" when there is clear visual evidence of the specific activity (e.g. a person actually planting a tree in soil for "Plant a Tree", visible litter being picked up for "Trash Cleanup", etc.).
+- Use "pending" only if the image is plausibly related but ambiguous.
+- Be strict. Default to "rejected" when in doubt.`;
 
-Respond with a JSON object using the tool provided.`;
+    const userPrompt = `Claimed activity: "${activityType}"
+
+Look at the attached image and determine whether it genuinely shows this activity. Then call the verify_submission tool with your decision.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -34,24 +70,30 @@ Respond with a JSON object using the tool provided.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: "You are an AI verification system. Analyze images for environmental activities." },
-          { role: "user", content: prompt },
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: userPrompt },
+              { type: "image_url", image_url: { url: imageDataUrl } },
+            ],
+          },
         ],
         tools: [
           {
             type: "function",
             function: {
               name: "verify_submission",
-              description: "Return verification results",
+              description: "Return verification results for the submitted image",
               parameters: {
                 type: "object",
                 properties: {
-                  is_valid: { type: "boolean", description: "Whether the submission is a valid environmental activity" },
+                  is_valid: { type: "boolean", description: "Whether the image clearly shows the claimed activity" },
                   confidence: { type: "number", description: "Confidence score from 0.0 to 1.0" },
-                  feedback: { type: "string", description: "Brief feedback explaining the verification result" },
-                  recommended_status: { type: "string", enum: ["verified", "rejected", "pending"], description: "Recommended status" },
+                  feedback: { type: "string", description: "Brief 1-2 sentence explanation of what you see and why you accepted/rejected it" },
+                  recommended_status: { type: "string", enum: ["verified", "rejected", "pending"] },
                 },
                 required: ["is_valid", "confidence", "feedback", "recommended_status"],
                 additionalProperties: false,
@@ -81,8 +123,8 @@ Respond with a JSON object using the tool provided.`;
 
     const data = await response.json();
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    
-    let result = { is_valid: false, confidence: 0.5, feedback: "Unable to verify", recommended_status: "pending" };
+
+    let result = { is_valid: false, confidence: 0.3, feedback: "Unable to verify image content.", recommended_status: "pending" };
     if (toolCall?.function?.arguments) {
       try {
         result = JSON.parse(toolCall.function.arguments);
@@ -90,6 +132,8 @@ Respond with a JSON object using the tool provided.`;
         console.error("Failed to parse AI response");
       }
     }
+
+    console.log("Verification result:", result);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
