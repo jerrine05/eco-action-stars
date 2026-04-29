@@ -1,0 +1,2 @@
+REVOKE EXECUTE ON FUNCTION public.redeem_points(INTEGER, TEXT, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.redeem_points(INTEGER, TEXT, TEXT) TO authenticated;
